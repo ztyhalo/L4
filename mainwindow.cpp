@@ -10,9 +10,7 @@
 QRect  GetScreenInfo(void)
 {
    QDesktopWidget* desktopWidget = QApplication::desktop();
-   //获取可用桌面大小
 //       QRect deskRect = desktopWidget->availableGeometry();
-   //获取设备屏幕大小
    QRect screenRect = desktopWidget->screenGeometry();
 
    return screenRect;
