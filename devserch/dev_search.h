@@ -70,6 +70,7 @@ class DEV_SEARCH:public QObject
 {
      Q_OBJECT
 public:
+#define DEV_TYPE_ADDR        5
 #define DEV_SEARCH_FRAME_LEN 208
 #define CRC_1_ADDR           205
 #define CRC_2_ADDR           206

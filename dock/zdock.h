@@ -25,4 +25,53 @@ protected:
 };
 
 
+class DoublieKeyWidget : public QDockWidget
+{
+    Q_OBJECT
+
+protected:
+     void mouseDoubleClickEvent ( QMouseEvent * ev);
+
+};
+
+class ZQTreeWidget: public QTreeWidget
+{
+     Q_OBJECT
+public:
+    ZQTreeWidget(QWidget *parent = 0):QTreeWidget(parent)
+    {;
+    }
+
+    QModelIndex zindexFromItem(QTreeWidgetItem *item, int column = 0)
+    {
+         return indexFromItem( item,  column );
+    }
+
+
+    int get_current_row(void)
+    {
+        if(currentItem() != NULL)
+        {
+            return indexFromItem(currentItem()).row();
+        }
+        else
+            return -1;
+    }
+};
+
+class ZQTabWidget: public QTabWidget
+{
+    Q_OBJECT
+public:
+   ZQTabWidget(QWidget *parent = 0):QTabWidget(parent)
+   {;
+   }
+
+   void mousePressEvent(QMouseEvent *)
+   {
+       qDebug("mouse press !!!");
+   }
+};
+
+
 #endif // __Z_DOCK_H__

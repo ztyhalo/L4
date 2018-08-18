@@ -8,6 +8,7 @@ void DEV_DATA_INFO::dev_data_init(QByteArray info)
 {
     qDebug("info size %d", sizeof(DEV_DATA_INFO)); //未进行crc校验，感觉没必要
     memcpy(&devtype, info.data() + DATA_INFO_START_ADDR, sizeof(DEV_DATA_INFO));
+    devtype = info[DEV_TYPE_ADDR];
 }
 DEV_SEARCH::DEV_SEARCH()
 {

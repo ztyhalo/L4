@@ -42,3 +42,12 @@ bool ZDockWidget::event(QEvent *event)
     }
     return QDockWidget::event(event);
 }
+
+void DoublieKeyWidget::mouseDoubleClickEvent (QMouseEvent * ev)
+{
+    qDebug("DoublieKeyWidget mouse double 0x%x!", ev->button());
+    if(ev->buttons() ==  Qt::RightButton)
+    {
+        qDebug("DoublieKeyWidget double!");
+    }
+}
