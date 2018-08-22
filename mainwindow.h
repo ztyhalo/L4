@@ -67,6 +67,9 @@ private:
 
     PROCESS_INFORMATION wpi;
     PROCESS_INFORMATION vncpi;
+    HWND                vnc_hand;
+
+    int                 set_mark;
 
 public:
     QMenu *sgin;
@@ -104,7 +107,7 @@ public:
     QTimer               * tim;
 public slots:
     void adddevlist(DEV_DATA_INFO  devinfo);
-    void plaint(void);
+//    void plaint(void);
     void devlistclick(QTreeWidgetItem* item,int val);
     void rogindev(void);
     void popMenu(const QPoint& point);
@@ -129,11 +132,14 @@ public:
     void add_pro_action(void);
     void createDockWindows(void);
     void destory_ie(void);
+    void destory_vnc(void);
     DWORD  get_paraid(void);
     quint8 get_dev_type(int dev);
 
      void keyPressEvent(QKeyEvent *);
      void keyReleaseEvent(QKeyEvent *);
+//     void mousePressEvent(QMouseEvent *mouse);
+     bool eventFilter(QObject *, QEvent *);
 };
 
 #define Z_ADD_ACTION(act, menu, info, addinfo) {act = new QAction(tr(info), this);\

@@ -51,3 +51,83 @@ void DoublieKeyWidget::mouseDoubleClickEvent (QMouseEvent * ev)
         qDebug("DoublieKeyWidget double!");
     }
 }
+
+void kill_w_process(PROCESS_INFORMATION proid)
+{
+    if (proid.hProcess && proid.hThread )
+    {
+        DWORD dwEC = 0;
+
+        BOOL b = GetExitCodeProcess(proid.hProcess,   &dwEC);
+
+        if (b)
+        {
+            qDebug("termin process!!!");
+            TerminateProcess( proid.hProcess, dwEC );
+        }
+
+        // Close process and thread handles.
+        CloseHandle( proid.hProcess );
+        CloseHandle( proid.hThread );
+    }
+}
+
+int ZProcessWidget::creat_process(QWidget *parent)
+{
+
+    if(cmd.isEmpty())
+    {
+        qDebug("cmd is empty!");
+        return 0;
+    }
+    STARTUPINFO si;
+
+    memset(&si, 0x00, sizeof(si));
+
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = true;
+
+
+    bool bRet = CreateProcess(
+        NULL,
+        (LPWSTR)cmd.toStdWString().c_str(),
+        NULL,
+        NULL,
+        FALSE,
+        CREATE_NEW_CONSOLE,
+        NULL,
+        NULL, &si, &pi);
+    if(bRet == 0)
+    {
+        qDebug("vnc fail!");
+        return 0;
+    }
+
+    WId wid = 0;
+    int i = 0;
+
+    do
+    {
+       Sleep(100);
+       wid = (WId)FindWindow(class_n.toStdWString().c_str(),  w_name.toStdWString().c_str());
+       i++;
+    }
+    while(wid == 0 && i < 10000);
+
+    if(wid == 0)
+    {
+        qDebug("wid 0 error!");
+        return 0;
+    }
+    qwin_p = QWindow::fromWinId(wid);
+
+    qwin_p->setFlags(qwin_p->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                       | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
+                       | Qt::BypassWindowManagerHint);
+    qwid_p = QWidget::createWindowContainer(qwin_p, parent);
+
+    qwid_p->setFocusPolicy(Qt::WheelFocus);
+
+    return 1;
+}
