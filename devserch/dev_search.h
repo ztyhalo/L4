@@ -63,6 +63,15 @@ public:
         return devid;
     }
 
+    bool mac_is_ok(void)
+    {
+          quint8 midmac[6];
+          memset(midmac, 0x00, sizeof(midmac));
+          if(memcmp(midmac, mac, sizeof(midmac)) == 0)
+              return false;
+          return true;
+    }
+
 
 };
 

@@ -73,14 +73,13 @@ MainWindow::MainWindow(QWidget *parent) :
     const QSize MAIN_SIZE_MAX = QSize(16777215, 16777215);
     this->setMaximumSize(MAIN_SIZE_MAX);
     setWindowFlags(windowFlags() | Qt::WindowMaximizeButtonHint);
-    sgin = menuBar()->addMenu(tr("登录"));
 
-    para_skip = menuBar()->addMenu(tr("参数预览"));
-    dev_search = menuBar()->addMenu(tr("设备搜索"));
-    net_pro = menuBar()->addMenu(tr("远程操作"));
+    sgin       = new ZMenu("登录", this);
 
-    view = menuBar()->addMenu(tr("视图"));
-
+    para_skip  = new ZMenu("参数预览", this);
+    dev_search = new ZMenu("设备搜索", this);
+    net_pro    = new ZMenu("远程操作", this);
+    view       = new ZMenu("视图", this);
 
     add_sgin_action();
     add_para_action();
@@ -98,16 +97,17 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(&devsearch, SIGNAL(adddevsig(DEV_DATA_INFO)), this, SLOT(adddevlist(DEV_DATA_INFO)));
 
     tim = new QTimer(this);
-    connect(tim, SIGNAL(timeout()), this, SLOT(keyconnect()));
-    rogtab = NULL;
-    vnctab = NULL;
-    set_mark = 0;
+    connect(tim, SIGNAL(timeout()), this, SLOT(vnckeyconnect()));
 
+
+    vncpro = NULL;
+    webpro = NULL;
 
 }
 
-void MainWindow::keyconnect(void)
+void MainWindow::vnckeyconnect(void)
 {
+   QWidget      *  vnctab = vncpro->get_widget();
   if(vnctab != NULL)
   {
     if(vnctab->isActiveWindow())
@@ -122,13 +122,13 @@ void MainWindow::keyconnect(void)
             int x = GlobalPoint.x();
             int y = GlobalPoint.y();
 
+            qDebug("x %d y %d mouse x %d mouse y %d", x, y, mousepos.x(), mousepos.y());
+
             if(mousepos.x() > x && mousepos.y() > y)
             {
                 qDebug("is active window!");
                 vnctab->setFocus(Qt::TabFocusReason);
-
             }
-
         }
      }
     else
@@ -142,98 +142,70 @@ void MainWindow::keyconnect(void)
 
 void MainWindow::add_sgin_action(void)
 {
-    Z_ADD_ACTION(login,sgin, "登录", "登录");
-    Z_ADD_ACTION(exit,sgin, "注销", "注销");
+    sgin->add_action("登录");
+    sgin->add_action("注销");
 
-    connect(login, SIGNAL(triggered()), this, SLOT(rogindev()));
+    connect(sgin->get_action("登录"), SIGNAL(triggered()), this, SLOT(rogindev()));
 }
 
 void MainWindow::rogindev(void)
 {
 
-    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
+    if(webpro != NULL)
+    {
+        qDebug("Have dev!");
+        return ;
+    }
+
     if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
     {
         qDebug("rogindev devlist no list!");
         return;
     }
+    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
 
+    quint8 ty = get_dev_type(devlist->get_current_row());
+
+    if(ty == 0x00 || ty == DEV_MAX_TYPE)
+    {
+        qDebug("dev type is LX!");
+        return ;
+    }
 
     QString logip = curItem->text(1);
     QString cmd = QString("C:/Program Files/Internet Explorer/iexplore.exe -k"
                           " http://%1").arg(logip);
-
     QString w_string = QString("http://%1/ - Windows Internet Explorer").arg(logip);
 
-    STARTUPINFO si;
+    webpro = new ZProcessWidget(cmd, w_string, "IEFrame");
+
+    webpro->creat_process(centertab);
+
+    zattachWindowThreadInput(webpro->get_pid_info().dwThreadId);
+    centertab->addTab(webpro->get_widget(), tr("登录"));
+    centertab->setCurrentWidget(webpro->get_widget());
+
+    tab[centertab->currentIndex()]  = SWITCH_DEV;
+    this->resize(this->width()+1, this->height()+1);
 
 
-    memset(&si, 0x00, sizeof(si));
-    si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = true;
-
-    memset(&wpi, 0x00, sizeof(wpi));
-
-    bool bRet = CreateProcess(
-        NULL,
-        (LPWSTR)cmd.toStdWString().c_str(),
-        NULL,
-        NULL,
-        FALSE,
-        CREATE_NEW_CONSOLE,
-        NULL,
-        NULL, &si, &wpi);
-
-    WId wid = 0;
-    int i = 0;
-    do {
-       Sleep(100);
-       wid = (WId)FindWindow(L"IEFrame", w_string.toStdWString().c_str());
-       i++;
-
-    } while(wid == 0 && i < 10000);
-
-    if(wid == 0)
-    {
-        //错误处理
-        qDebug("wid 0error!");
-        return;
-    }
-
-    QWindow *m_window;
-    m_window = QWindow::fromWinId(wid);
-
-    m_window->setFlags(m_window->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
-                       | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC); //
-
-    rogtab = QWidget::createWindowContainer(m_window, centertab);
-
-    rogtab->setFocusPolicy(Qt::WheelFocus);
-
-    zattachWindowThreadInput(wpi.dwThreadId);
-
-    centertab->addTab(rogtab, tr("登录"));
 }
 
 void MainWindow::destory_ie(void)
 {
-    if(rogtab != NULL)
+    if(webpro != NULL)
     {
-        kill_w_process(wpi);
-        delete rogtab;
-        rogtab = NULL;
+        delete webpro;
+        webpro = NULL;
     }
 }
 
 void MainWindow::destory_vnc(void)
 {
-    if(vnctab != NULL)
+    if(vncpro != NULL)
     {
-        kill_w_process(vncpi);
-        delete vnctab;
-        vnctab = NULL;
-
+        delete vncpro;
+        vncpro = NULL;
     }
     if(tim != NULL)
     {
@@ -241,54 +213,12 @@ void MainWindow::destory_vnc(void)
     }
 }
 
-DWORD  MainWindow::get_paraid(void)
-{
-
-    LONG                        status;
-    DWORD                        dwParentPID = (DWORD)-1;
-    HANDLE                        hProcess;
-    PROCESS_BASIC_INFORMATION    pbi;
-
-    PROCNTQSIP NtQueryInformationProcess = (PROCNTQSIP)GetProcAddress(
-    GetModuleHandle(L"ntdll"), "NtQueryInformationProcess");
-
-    if(NULL == NtQueryInformationProcess)
-    {
-       return (DWORD)-1;
-    }
-    // Get process handle
-    hProcess = OpenProcess(PROCESS_QUERY_INFORMATION,FALSE,  wpi.dwProcessId);
-    if (!hProcess)
-    {
-       return (DWORD)-1;
-    }
-
-    // Retrieve information
-    status = NtQueryInformationProcess( hProcess,
-       ProcessBasicInformation,
-       (PVOID)&pbi,
-       sizeof(PROCESS_BASIC_INFORMATION),
-       NULL
-       );
-
-    // Copy parent Id on success
-    if  (!status)
-    {
-       dwParentPID = pbi.InheritedFromUniqueProcessId;
-    }
-
-    CloseHandle (hProcess);
-
-    return dwParentPID;
-
-
-}
 
 //浏览当前设备的参数
 void MainWindow::add_para_action(void)
 {
-    Z_ADD_ACTION(skip, para_skip, "浏览当前", "浏览当前设备");
-//    connect(skip,SIGNAL(tirggered()), this, SLOT(skipdev()));
+    para_skip->add_action("浏览当前", "浏览当前设备");
+
 }
 
 void MainWindow::skipdev(void)
@@ -298,98 +228,15 @@ void MainWindow::skipdev(void)
 
 void MainWindow::add_search_action(void)
 {
-    Z_ADD_ACTION(search_all, dev_search, "搜索所有", "搜索所有设备");
-    connect(search_all, SIGNAL(triggered()), &devsearch, SLOT(start_skip_dev()));
+    dev_search->add_action( "搜索所有", "搜索所有设备", true);
+    connect(dev_search->get_action("搜索所有"), SIGNAL(triggered()), &devsearch, SLOT(start_skip_dev()));
 }
 
 void MainWindow::add_pro_action(void)
 {
-     Z_ADD_ACTION(pro_now, net_pro, "&远程目前", "远程当前设备");
-     connect(pro_now, SIGNAL(triggered()), this, SLOT(tightremotedev()));
+     net_pro->add_action("远程目前", "远程当前设备");
+     connect(net_pro->get_action("远程目前"), SIGNAL(triggered()), this, SLOT(remotedev()));
 }
-
-void MainWindow::tightremotedev(void)
-{
-
-    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
-    if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
-    {
-        qDebug("rogindev devlist no list!");
-        return;
-    }
-
-    if(get_dev_type(devlist->get_current_row()) != 0x00)
-    {
-        qDebug("dev type is LX!");
-        return ;
-    }
-
-    QString logip = curItem->text(1);
-
-    QString cmd = QString("C:/Program Files/TightVNC/tvnviewer.exe %1").arg(logip);
-
-    STARTUPINFO si;
-
-    memset(&si, 0x00, sizeof(si));
-    si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = true;
-
-    memset(&vncpi, 0x00, sizeof(vncpi));
-
-
-    bool bRet = CreateProcess(
-        NULL,
-        (LPWSTR)cmd.toStdWString().c_str(),
-        NULL,
-        NULL,
-        FALSE,
-        CREATE_NEW_CONSOLE,
-        NULL,
-        NULL, &si, &vncpi);
-    if(bRet == 0)
-    {
-        qDebug("vnc fail!");
-    }
-
-    WId wid = 0;
-    int i = 0;
-
-    do {
-       Sleep(100);
-       vnc_hand = FindWindow(L"TvnWindowClass", L"Qt for Embedded Linux VNC Server - TightVNC Viewer");
-       wid = (WId)vnc_hand;
-//       wid = (WId)FindWindow(NULL, L"New TightVNC Connection");
-         qDebug("proid 0x%x", wid);
-       i++;
-    }while(wid == 0 && i < 10000);
-
-    if(wid == 0)
-    {
-        qDebug("wid 0error!");
-        return;
-    }
-
-     tim->start(1000);
-
-     QWindow *m_window;
-     m_window = QWindow::fromWinId(wid);
-
-    m_window->setFlags(m_window->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
-                       | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
-                       | Qt::BypassWindowManagerHint);
-    vnctab = QWidget::createWindowContainer(m_window, centertab);
-
-    vnctab->setFocusPolicy(Qt::WheelFocus);
-
-    centertab->addTab(vnctab, tr("连接"));
-
-
-    qDebug("currentIndex is %d!", centertab->currentIndex());
-//
-
-}
-
 
 void MainWindow::toolBarFloat(bool topLevel)
 {
@@ -404,12 +251,18 @@ void MainWindow::removeMtab(int index)
 {
     if(centertab != NULL)
     {
-        centertab->removeTab(index);
+        if(tab[index] == LX_DEV)
+        {
+            destory_vnc();
+        }
+        else
+        {
+            destory_ie();
+        }
 
-         qDebug("father id is 0x%x", get_paraid());
-        destory_ie();
-        destory_vnc();
+        centertab->removeTab(index);
     }
+
 }
 
 void MainWindow::createDockWindows(void)
@@ -423,37 +276,25 @@ void MainWindow::createDockWindows(void)
     devlist->setRootIsDecorated(false);
     devlist->setHeaderLabels(QStringList() << tr("设备名称") << tr("IP地址") << tr("MAC地址"));
     devlist->header()->setStretchLastSection(false);
-
     dock->setWidget(devlist);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
-    view->addAction(dock->toggleViewAction());
+    view->get_menu()->addAction(dock->toggleViewAction());
     connect(devlist,SIGNAL(itemClicked(QTreeWidgetItem*,int)),
               this,SLOT(devlistclick(QTreeWidgetItem* ,int)));
     devlist->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(devlist,SIGNAL(customContextMenuRequested(const QPoint&)),
             this,SLOT(popMenu(const QPoint&)));//检测鼠标右键
 
-    qDebug("dev list dock is 0x%x!",dock->focusPolicy());
 
     devlist->setFocusPolicy(Qt::ClickFocus);
 
     qDebug("devlist is 0x%x!",devlist->focusPolicy());
 
 
-//    QRect screenRect = centralWidget()->screenGeometry();
-//    ui->centralWidget->getContentsMargins();
-//    centerdock =  new QDockWidget(tr("窗体"), this);
-
-//    setCentralWidget(centerdock);
-
-//    connect(centerdock,SIGNAL(topLevelChanged(bool)),this,SLOT(toolBarFloat(bool)));
-
     centerzdock = new ZDockWidget(this, tr("窗体"));
 
-//    centerzdock = new QDockWidget(tr("窗体"), this);
     setCentralWidget(centerzdock);
     connect(centerzdock,SIGNAL(topLevelChanged(bool)),this,SLOT(toolBarFloat(bool)));
-//    centerdock->setAllowedAreas(Qt::LeftDockWidgetArea| Qt::RightDockWidgetArea);
 
     qDebug("windows is 0x%x!",centerzdock->focusPolicy());
     centertab = new QTabWidget(centerzdock);
@@ -462,51 +303,56 @@ void MainWindow::createDockWindows(void)
 
     centertab->setTabsClosable(TRUE);
 
-//    centertab->tabCloseRequested.connect(centertab->removeTab);
     connect(centertab, SIGNAL(tabCloseRequested(int)), this, SLOT(removeMtab(int)));
     centerzdock->setWidget(centertab);
 
     centertab->setFocusPolicy(Qt::ClickFocus);
 
     qDebug("centertab is 0x%x!",centertab->focusPolicy());
-    view->addAction(centerzdock->toggleViewAction());
+//    view->addAction(centerzdock->toggleViewAction());
+    view->get_menu()->addAction(centerzdock->toggleViewAction());
 
 
     infodock =  new QDockWidget(tr("提示信息"), this);
     infodock->setAllowedAreas(Qt::BottomDockWidgetArea);
 
-//    centertab = new QTabWidget(centerdock);
-//    QLabel * filename = new QLabel(tr("File name:"));
-//    centertab->addTab(filename, tr("General"));
 
-//    centerdock->setWidget(centertab);
     addDockWidget(Qt::BottomDockWidgetArea, infodock);
-    view->addAction(infodock->toggleViewAction());
-
-//    QHBoxLayout * cenlayout = new QHBoxLayout;
-//    cenlayout->addWidget(dock);
-//    cenlayout->addWidget(centerdock);
-
+    view->get_menu()->addAction(infodock->toggleViewAction());
 
 }
 //在设备列表上点击鼠标左键
-void MainWindow::devlistclick(QTreeWidgetItem* item,int val)
-{
-    qDebug("click val %d", val);
-    set_mark = 0;
+void MainWindow::devlistclick(QTreeWidgetItem* item,  int val)
+{   
+    quint8 ty = get_dev_type( devlist->get_current_row());
+    if(ty == LX_DEV)            //L  系列
+    {
+        net_pro->action_enable(true);
+        qDebug("action enable!!!!");
+    }
+    else
+    {
+         net_pro->action_enable(false);
+    }
+
 
 }
 
 void MainWindow::remotedev(void)
 {
+    if(vncpro != NULL)
+    {
+        qDebug("Have dev!");
+        return ;
+    }
 
-
-    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
     if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
     {
         qDebug("rogindev devlist no list!");
         return;
     }
+    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
+
 
     if(get_dev_type(devlist->get_current_row()) != 0x00)
     {
@@ -516,91 +362,22 @@ void MainWindow::remotedev(void)
 
     QString logip = curItem->text(1);
 
-    QString cmd = QString("C:/Program Files/RealVNC/VNC Viewer/vncviewer.exe %1").arg(logip);
+    QString cmd = QString("C:/Program Files/TightVNC/tvnviewer.exe %1").arg(logip);
 
+    vncpro = new ZProcessWidget(cmd, "Qt for Embedded Linux VNC Server - TightVNC Viewer", "TvnWindowClass");
 
-    QString w_string = QString("%1 (Qt for Embedded Linux VNC Server) - VNC Viewer").arg(logip);
+    vncpro->creat_process(centertab);
 
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+    tim->start(1000);
 
-    memset(&si, 0x00, sizeof(si));
-    si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = true;
+    centertab->addTab(vncpro->get_widget(), tr("连接"));
+    centertab->setCurrentWidget(vncpro->get_widget());
+    qDebug("vnc tab index is %d", centertab->currentIndex());
+     tab[centertab->currentIndex()]  = LX_DEV;
+    this->resize(this->width()+1, this->height()+1);
 
+//    centertab->setTabEnabled(, );
 
-
-    bool bRet = CreateProcess(
-        NULL,
-        (LPWSTR)cmd.toStdWString().c_str(),
-        NULL,
-        NULL,
-        FALSE,
-        CREATE_NEW_CONSOLE,
-        NULL,
-        NULL, &si, &pi);
-
-    WId wid = 0;
-    int i = 0;
-
-    do {
-       Sleep(10);
-//       wid = (WId)FindWindow(L"ui::Window::Dialog", L"192.168.1.112 - VNC Viewer");
-       wid = (WId)FindWindow(L"vwr::CDesktopWin",w_string.toStdWString().c_str());
-       qDebug("proid 0x%x", wid);
-       i++;
-    }while(wid == 0 && i < 10000);
-
-    if(wid == 0)
-    {
-        //错误处理
-        qDebug("wid 0error!");
-        return;
-    }
-
-
-    QWindow *m_window;
-    m_window = QWindow::fromWinId(wid);
-//    attachWindowThreadInput(wid);
-
-
-    qDebug("wind flag 0x%x!", m_window->flags());
-    m_window->setFlags(m_window->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
-                       | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
-                       | Qt::BypassWindowManagerHint);
-    vnctab = QWidget::createWindowContainer(m_window, centertab);
-
-//    vnctab->installEventFilter(this);
-    centertab->addTab(vnctab, tr("连接"));
-
-
-
-
-/*
-    i = 0;
-    do {
-       Sleep(10);
-       wid = (WId)FindWindow(L"vwr::CDesktopWin", L"192.168.1.112 (Qt for Embedded Linux VNC Server) - VNC Viewer");
-
-       qDebug("proid 0x%x", wid);
-       i++;
-    }while(wid == 0 && i < 1000);
-     qDebug("wid %d!", wid);
-
-     QWindow *w_window;
-     w_window = QWindow::fromWinId(wid);
-
-     qDebug("wind flag 0x%x!", w_window->flags());
-     w_window->setFlags(w_window->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
-                        | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
-                        | Qt::BypassWindowManagerHint); //
-
-   //  m_window->setFlags((Qt::WindowType)0xffffffff);
-     QWidget* drogtab = QWidget::createWindowContainer(w_window, centertab);
- //    rogtab->setMinimumSize(400, 300);
-     centertab->addTab(drogtab, tr("远程"));
-     */
 }
 
 
@@ -639,6 +416,10 @@ void MainWindow::popMenu(const QPoint& point)
 //是否已经添加了dev设备。
 BOOL MainWindow::dev_is_have(DEV_DATA_INFO dev)
 {
+
+    if(dev.mac_is_ok() == false)
+        return FALSE;
+
     QVector<DEV_DATA_INFO>::iterator iter;
     for(iter = devinfolist.begin(); iter != devinfolist.end(); iter++)
     {
@@ -716,14 +497,6 @@ void MainWindow::keyReleaseEvent(QKeyEvent * key)
 
 bool MainWindow::eventFilter(QObject * obj, QEvent * event)
 {
-    if(obj != NULL && obj == vnctab)
-    {
-//         if(event->type() == QEvent::MouseButtonPress)
-         {
-             qDebug("event filter mouse!");
-
-         }
-    }
     return false;
 }
 
@@ -731,3 +504,46 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
+
+//DWORD  MainWindow::get_paraid(void)
+//{
+
+//    LONG                        status;
+//    DWORD                        dwParentPID = (DWORD)-1;
+//    HANDLE                        hProcess;
+//    PROCESS_BASIC_INFORMATION    pbi;
+
+//    PROCNTQSIP NtQueryInformationProcess = (PROCNTQSIP)GetProcAddress(
+//    GetModuleHandle(L"ntdll"), "NtQueryInformationProcess");
+
+//    if(NULL == NtQueryInformationProcess)
+//    {
+//       return (DWORD)-1;
+//    }
+//    // Get process handle
+//    hProcess = OpenProcess(PROCESS_QUERY_INFORMATION,FALSE,  wpi.dwProcessId);
+//    if (!hProcess)
+//    {
+//       return (DWORD)-1;
+//    }
+
+//    // Retrieve information
+//    status = NtQueryInformationProcess( hProcess,
+//       ProcessBasicInformation,
+//       (PVOID)&pbi,
+//       sizeof(PROCESS_BASIC_INFORMATION),
+//       NULL
+//       );
+
+//    // Copy parent Id on success
+//    if  (!status)
+//    {
+//       dwParentPID = pbi.InheritedFromUniqueProcessId;
+//    }
+
+//    CloseHandle (hProcess);
+
+//    return dwParentPID;
+
+
+//}

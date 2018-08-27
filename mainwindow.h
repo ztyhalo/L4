@@ -30,25 +30,28 @@ class MainWindow;
  }   PROCESS_BASIC_INFORMATION;
 
 
- // ntdll!NtQueryInformationProcess (NT specific!)
- //
- // The function copies the process information of the
- // specified type into a buffer
- //
- // NTSYSAPI
- // NTSTATUS
- // NTAPI
- // NtQueryInformationProcess(
- //    IN HANDLE ProcessHandle,              // handle to process
- //    IN PROCESSINFOCLASS InformationClass, // information type
- //    OUT PVOID ProcessInformation,         // pointer to buffer
- //    IN ULONG ProcessInformationLength,    // buffer size in bytes
- //    OUT PULONG ReturnLength OPTIONAL      // pointer to a 32-bit
- //                                          // variable that receives
- //                                          // the number of bytes
- //                                          // written to the buffer
- // );
  typedef LONG (__stdcall *PROCNTQSIP)(HANDLE,UINT,PVOID,ULONG,PULONG);
+
+
+enum {
+    LX_DEV = 0x00,
+    SWITCH_DEV = 0x11,
+    DEV_MAX_TYPE = 0xff
+};
+
+class TabType
+{
+public:
+    int    index;
+    quint8 type;
+public:
+    TabType(int dex = 0, quint8 t = 0)
+    {
+        index = dex;
+        type =t;
+    }
+
+};
 
 class MainWindow : public QMainWindow
 {
@@ -59,51 +62,40 @@ public:
     ~MainWindow();
 
 private:
-    Ui::MainWindow *ui;
-    QDialog  * dialg;
-    QLineEdit  * qwiget;
+    Ui::MainWindow *  ui;
+    QDialog  *        dialg;
+    QLineEdit  *      qwiget;
 
-
-
-    PROCESS_INFORMATION wpi;
-    PROCESS_INFORMATION vncpi;
-    HWND                vnc_hand;
-
-    int                 set_mark;
 
 public:
-    QMenu *sgin;
-    QMenu *para_skip;
-    QMenu *dev_search;
-    QMenu *net_pro;
-    QMenu * view;
+    ZMenu *             sgin;
+    ZMenu *             para_skip;
+    ZMenu *             dev_search;
+    ZMenu *             net_pro;
+    ZMenu *             view;
 
-    ZQTreeWidget * devlist;
+    ZQTreeWidget *              devlist;
+    ZProcessWidget *            vncpro;
+    ZProcessWidget *            webpro;
+    QVector<DEV_DATA_INFO>      devinfolist;   //存储已经添加的设备信息列表
+    quint8                      tab[2];
 
 
-    QAction * login;
-    QAction * exit;
 
-    QAction * skip;
 
-    QAction * search_all;
-
-    QAction * pro_now;
     QWidget * proshow;
     QWindow *m_window;
 
-//    QDockWidget  * centerdock;
     QTabWidget   * centertab;
 
    ZDockWidget  * centerzdock;
-//    QDockWidget  * centerzdock;
-    QWidget      *  rogtab;
-    QWidget      *  vnctab;
+
+
 
     QDockWidget                 * infodock;
     DEV_SEARCH                    devsearch;
 
-    QVector<DEV_DATA_INFO>      devinfolist;   //存储已经添加的设备信息列表
+
     QTimer               * tim;
 public slots:
     void adddevlist(DEV_DATA_INFO  devinfo);
@@ -113,13 +105,13 @@ public slots:
     void popMenu(const QPoint& point);
     void skipdev(void);
     void remotedev(void);
-    void tightremotedev(void);
+
     void removeMtab(int index);
 
 public slots:
     void toolBarFloat(bool topLevel);
     void foucschange(QObject *object);
-    void keyconnect();
+    void vnckeyconnect();
 
 
 
@@ -142,8 +134,5 @@ public:
      bool eventFilter(QObject *, QEvent *);
 };
 
-#define Z_ADD_ACTION(act, menu, info, addinfo) {act = new QAction(tr(info), this);\
-                                            act->setStatusTip(tr(addinfo));\
-                                            menu->addAction(act);}
 
 #endif // MAINWINDOW_H

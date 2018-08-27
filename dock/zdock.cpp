@@ -128,6 +128,45 @@ int ZProcessWidget::creat_process(QWidget *parent)
     qwid_p = QWidget::createWindowContainer(qwin_p, parent);
 
     qwid_p->setFocusPolicy(Qt::WheelFocus);
+//    qwid_p->activateWindow();
 
     return 1;
+}
+
+int ZMenu::add_action(QString n, QString text, bool en)
+{
+    ZAction ac(n);
+
+    ac.act = new QAction(n, parent);
+    if(text.isEmpty())
+        ac.act->setStatusTip(n);
+    else
+        ac.act->setStatusTip(text);
+    menu_p->addAction(ac.act);
+    action.append(ac);
+    ac.act->setEnabled(en);
+    return 1;
+}
+
+
+
+QAction * ZMenu::get_action(QString n)
+{
+    QVector<ZAction>::iterator iter;
+    for(iter = action.begin(); iter != action.end(); iter++)
+    {
+       if(iter->na == n)
+           return iter->act;
+    }
+    return NULL;
+}
+
+void ZMenu::action_enable(bool en)
+{
+    QVector<ZAction>::iterator iter;
+    for(iter = action.begin(); iter != action.end(); iter++)
+    {
+        iter->act->setEnabled(en);
+    }
+
 }

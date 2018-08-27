@@ -96,11 +96,15 @@ public:
 
     ~ZProcessWidget()
     {
-        if(qwid_p != NULL)
-            delete qwid_p;
         if(qwin_p != NULL)
             delete qwin_p;
 
+        if(qwid_p != NULL)
+            delete qwid_p;
+
+
+        qwid_p = NULL;
+        qwin_p = NULL;
         kill_w_process(pi);
     }
 
@@ -110,6 +114,54 @@ public:
     {
         return qwid_p;
     }
+    PROCESS_INFORMATION  get_pid_info(void)
+    {
+        return pi;
+    }
+};
+
+class ZAction
+{
+public:
+    QString     na;
+    QAction  *  act;
+public:
+    ZAction(QString name ="")
+    {
+        na = name;
+        act = NULL;
+    }
+};
+
+class ZMenu
+{
+public:
+    QString            name;
+    QMenu       *       menu_p;
+    QMainWindow *      parent;
+    QVector<ZAction>   action;
+public:
+    ZMenu(QString n, QMainWindow * p)
+    {
+
+        name = n;
+        parent = p;
+        if(p != NULL)
+        {
+            menu_p = parent->menuBar()->addMenu(name);
+        }
+    }
+
+    int add_action(QString n, QString text="", bool en = false);
+
+    QMenu * get_menu(void)
+    {
+        return menu_p;
+    }
+
+    QAction * get_action(QString n);
+
+    void action_enable(bool en);
 };
 
 
