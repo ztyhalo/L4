@@ -5,12 +5,14 @@
 #include <QDialog>
 #include <QHash>
 #include <QTreeWidget>
-#include <devserch/dev_search.h>
+#include <devserch/dev_client.h>
 #include <QtWidgets/QWidget>
 #include <QLineEdit>
 #include "dock/zdock.h"
 #include <wtypes.h>
 #include <QTime>
+#include "zedit/ZInternetSet.h"
+#include "zedit/ZGroup.h"
 
 namespace Ui {
 class MainWindow;
@@ -63,9 +65,6 @@ public:
 
 private:
     Ui::MainWindow *  ui;
-    QDialog  *        dialg;
-    QLineEdit  *      qwiget;
-
 
 public:
     ZMenu *             sgin;
@@ -80,23 +79,12 @@ public:
     QVector<DEV_DATA_INFO>      devinfolist;   //存储已经添加的设备信息列表
     quint8                      tab[2];
 
+    QTabWidget   *              centertab;
+    ZDockWidget  *              centerzdock;
+    QDockWidget  *              infodock;
+    ZDEV_CLIENT                 devsearch;
+    QTimer       *              tim;
 
-
-
-    QWidget * proshow;
-    QWindow *m_window;
-
-    QTabWidget   * centertab;
-
-   ZDockWidget  * centerzdock;
-
-
-
-    QDockWidget                 * infodock;
-    DEV_SEARCH                    devsearch;
-
-
-    QTimer               * tim;
 public slots:
     void adddevlist(DEV_DATA_INFO  devinfo);
 //    void plaint(void);
@@ -107,6 +95,11 @@ public slots:
     void remotedev(void);
 
     void removeMtab(int index);
+    void setip(void);
+    void set_ip_addr(TCPText text);
+
+    void restart_dev_search(void);
+
 
 public slots:
     void toolBarFloat(bool topLevel);

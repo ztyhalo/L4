@@ -94,7 +94,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     createDockWindows();
 
-    connect(&devsearch, SIGNAL(adddevsig(DEV_DATA_INFO)), this, SLOT(adddevlist(DEV_DATA_INFO)));
+    connect(&devsearch, SIGNAL(add_dev_sig(DEV_DATA_INFO)), this, SLOT(adddevlist(DEV_DATA_INFO)));
 
     tim = new QTimer(this);
     connect(tim, SIGNAL(timeout()), this, SLOT(vnckeyconnect()));
@@ -217,7 +217,8 @@ void MainWindow::destory_vnc(void)
 //浏览当前设备的参数
 void MainWindow::add_para_action(void)
 {
-    para_skip->add_action("浏览当前", "浏览当前设备");
+    para_skip->add_action("浏览当前", "浏览当前设备", true);
+    connect(para_skip->get_action("浏览当前"), SIGNAL(triggered()), this, SLOT(restart_dev_search()));
 
 }
 
@@ -225,6 +226,15 @@ void MainWindow::skipdev(void)
 {
     ;
 }
+
+void MainWindow::restart_dev_search(void)
+{
+    devlist->clear();
+    qDebug("devinfolist size %d", devinfolist.size());
+    devinfolist.clear();
+    qDebug("devinfolist size %d", devinfolist.size());
+}
+
 
 void MainWindow::add_search_action(void)
 {
@@ -335,7 +345,6 @@ void MainWindow::devlistclick(QTreeWidgetItem* item,  int val)
          net_pro->action_enable(false);
     }
 
-
 }
 
 void MainWindow::remotedev(void)
@@ -381,6 +390,48 @@ void MainWindow::remotedev(void)
 }
 
 
+void MainWindow::setip(void)
+{
+
+
+    DEV_DATA_INFO dev = devinfolist[devlist->get_current_row()];
+
+    QPoint GlobalPoint(centerzdock->mapToGlobal(QPoint(0, 0)));//获取控件在窗体中的坐标
+
+    qDebug("centertab xw %d h %d!", centerzdock->width(), centerzdock->height());
+
+//    QDialog      * ipdia = new QDialog();
+    ZInternetSet * ipAddr = new ZInternetSet();
+
+    ipAddr->ip_init(QString::fromStdString(dev.get_ip_string()),
+                    QString::fromStdString(dev.get_netmask_string()),
+                    QString::fromStdString(dev.get_gw_string()));
+
+//    centertab->addTab(ipAddr, tr("ip"));
+    ipAddr->move(GlobalPoint.x() +centerzdock->width()/3, GlobalPoint.y() +centerzdock->height()/5);
+//    ipAddr->show();
+    connect(ipAddr, SIGNAL(set_ip_text(TCPText)), this, SLOT(set_ip_addr(TCPText)));
+    connect(&devsearch, SIGNAL(ip_set_state(int)), ipAddr, SLOT(set_ip_result(int)));
+
+    ipAddr->exec();
+
+    delete ipAddr;
+
+}
+
+void MainWindow::set_ip_addr(TCPText text)
+{
+    DEV_DATA_INFO dev = devinfolist[devlist->get_current_row()];
+
+    string_to_hex(text.ip,   ".",  dev.ip,      sizeof(dev.ip));
+    string_to_hex(text.mask, ".",  dev.netmask, sizeof(dev.netmask));
+    string_to_hex(text.gw,   ".",  dev.gateway, sizeof(dev.gateway));
+
+    qDebug()<<"ip !" << text.ip;
+    dev.get_mac_string();
+    devsearch.set_ip_info(dev);
+}
+
 
 //在设备列表上点击鼠标右键
 void MainWindow::popMenu(const QPoint& point)
@@ -403,7 +454,7 @@ void MainWindow::popMenu(const QPoint& point)
         QAction setip(tr("设置ip"),this);   //设置该设备的Ip
         //在界面上删除该item
        connect(&logindev, SIGNAL(triggered()), this, SLOT(rogindev()));
-//        connect(&setip,SIGNAL(triggered()),this,SLOT(setip()));
+       connect(&setip,SIGNAL(triggered()),this,SLOT(setip()));
 
         QPoint pos;
         QMenu menu(this->devlist);
