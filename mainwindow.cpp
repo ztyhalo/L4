@@ -230,9 +230,7 @@ void MainWindow::skipdev(void)
 void MainWindow::restart_dev_search(void)
 {
     devlist->clear();
-    qDebug("devinfolist size %d", devinfolist.size());
     devinfolist.clear();
-    qDebug("devinfolist size %d", devinfolist.size());
 }
 
 
