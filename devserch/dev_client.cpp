@@ -82,23 +82,13 @@ void ZDEV_CLIENT::get_dev_name(QString dir)
     }
 }
 
-void ZDEV_CLIENT::set_dev_name(QByteArray data)
+void ZDEV_CLIENT::set_dev_name(DEV_DATA_INFO data)
 {
-    char   devname[21];
-    char   devid[21];
-    memcpy(devname, data.data() + NAME_SET_ADDR,  sizeof(devname));
-    memcpy(devid, data.data() + NAME_SET_ADDR + sizeof(devname),  sizeof(devid));
-
-    QProcess * process = new QProcess();
-//    process->start(SET_DEV_SH, QStringList() << devname);
-
-    if(process->waitForFinished())
-    {
-        qDebug("set over!");
-    }
-    data[NAME_SET_ADDR] = 0x00;
-    memset(data.data() + NAME_SET_ADDR +1, 0x00, NAME_SET_INFO_LEN -1);
-    dev_send_data(data);
+    char name[27];
+    memset(name, 0x00, sizeof(name));
+    memcpy(name, data.mac, sizeof(data.mac));
+    memcpy(name+sizeof(data.mac), data.name, sizeof(data.name));
+    dev_send_data(SET_DEV_NAME, data.devtype, name, DEV_AUTO_DEF_ADDR, 27);
 
 }
 
@@ -158,7 +148,15 @@ int ZDEV_CLIENT::receive_data_process(QByteArray data)
             }
         break;
         case SET_DEV_NAME_ASK:
-            set_dev_name(data);
+            qDebug("name set ok!");
+            if((uint8_t)data[IP_ASK_MRAK_ADDR] == 0)
+            {
+                emit name_set_state(0);
+            }
+            else
+            {
+                emit name_set_state(1);
+            }
         break;
     default:
         break;

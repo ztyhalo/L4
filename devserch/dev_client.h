@@ -58,7 +58,7 @@ public:
     static int get_dev_info(void);
     int get_dev_info(QString dev);
     void get_dev_name(QString dir);
-    void set_dev_name(QByteArray data);
+    void set_dev_name(DEV_DATA_INFO);
     void set_ip_info(DEV_DATA_INFO data);
 };
 

@@ -13,6 +13,7 @@
 #include <QTime>
 #include "zedit/ZInternetSet.h"
 #include "zedit/ZGroup.h"
+#include "devname/devnameset.h"
 
 namespace Ui {
 class MainWindow;
@@ -97,6 +98,8 @@ public slots:
     void removeMtab(int index);
     void setip(void);
     void set_ip_addr(TCPText text);
+    void set_name_text(QString n);
+    void set_dev_name(void);
 
     void restart_dev_search(void);
 

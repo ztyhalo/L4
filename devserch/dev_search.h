@@ -62,6 +62,11 @@ public:
     {
         return name;
     }
+
+    void set__name(QString n)
+    {
+        strcpy(name, n.toStdString().c_str());
+    }
     std::string get_dev_id(void)
     {
         return devid;

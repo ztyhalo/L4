@@ -21,7 +21,8 @@ SOURCES += main.cpp\
     zedit/ZEdit.cpp \
     zedit/ZGroup.cpp \
     zedit/ZInternetSet.cpp \
-    devserch/dev_client.cpp
+    devserch/dev_client.cpp \
+    devname/devnameset.cpp
 
 HEADERS  += mainwindow.h \
     devserch/dev_search.h \
@@ -30,7 +31,8 @@ HEADERS  += mainwindow.h \
     zedit/ZEdit.h \
     zedit/ZGroup.h \
     zedit/ZInternetSet.h \
-    devserch/dev_client.h
+    devserch/dev_client.h \
+    devname/devnameset.h
 
 FORMS    += mainwindow.ui
 

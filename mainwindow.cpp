@@ -217,8 +217,8 @@ void MainWindow::destory_vnc(void)
 //浏览当前设备的参数
 void MainWindow::add_para_action(void)
 {
-    para_skip->add_action("浏览当前", "浏览当前设备", true);
-    connect(para_skip->get_action("浏览当前"), SIGNAL(triggered()), this, SLOT(restart_dev_search()));
+    para_skip->add_action("浏览当前", "浏览当前设备");
+//    connect(para_skip->get_action("浏览当前"), SIGNAL(triggered()), this, SLOT(restart_dev_search()));
 
 }
 
@@ -231,13 +231,15 @@ void MainWindow::restart_dev_search(void)
 {
     devlist->clear();
     devinfolist.clear();
+    devsearch.start_skip_dev();
 }
 
 
 void MainWindow::add_search_action(void)
 {
     dev_search->add_action( "搜索所有", "搜索所有设备", true);
-    connect(dev_search->get_action("搜索所有"), SIGNAL(triggered()), &devsearch, SLOT(start_skip_dev()));
+//    connect(dev_search->get_action("搜索所有"), SIGNAL(triggered()), &devsearch, SLOT(start_skip_dev()));
+    connect(dev_search->get_action("搜索所有"), SIGNAL(triggered()), this, SLOT(restart_dev_search()));
 }
 
 void MainWindow::add_pro_action(void)
@@ -417,6 +419,18 @@ void MainWindow::setip(void)
 
 }
 
+void MainWindow::set_dev_name(void)
+{
+    DEV_DATA_INFO dev = devinfolist[devlist->get_current_row()];
+    DevNameDialog * nam = new DevNameDialog(QString::fromStdString(dev.get_dev_name()));
+    connect(nam->buttonbox, SIGNAL(rejected()), nam, SLOT(reject()));
+    connect(nam, SIGNAL(click_set_dev(QString)), this, SLOT(set_name_text(QString)));
+    connect(&devsearch, SIGNAL(name_set_state(int)), nam, SLOT(name_set_result(int)));
+    nam->exec();
+
+    delete nam;
+}
+
 void MainWindow::set_ip_addr(TCPText text)
 {
     DEV_DATA_INFO dev = devinfolist[devlist->get_current_row()];
@@ -430,6 +444,17 @@ void MainWindow::set_ip_addr(TCPText text)
     devsearch.set_ip_info(dev);
 }
 
+
+void MainWindow::set_name_text(QString n)
+{
+    qDebug() << "dev name " << n;
+    DEV_DATA_INFO dev = devinfolist[devlist->get_current_row()];
+
+
+    dev.set__name(n);
+    qDebug("nnnnnn %s", dev.name);
+    devsearch.set_dev_name(dev);
+}
 
 //在设备列表上点击鼠标右键
 void MainWindow::popMenu(const QPoint& point)
@@ -450,14 +475,17 @@ void MainWindow::popMenu(const QPoint& point)
     {
         QAction logindev(tr("登录该设备"),this);//登录该设备
         QAction setip(tr("设置ip"),this);   //设置该设备的Ip
+        QAction setname(tr("设置设备名称"),this);   //设置该设备的Ip
         //在界面上删除该item
        connect(&logindev, SIGNAL(triggered()), this, SLOT(rogindev()));
-       connect(&setip,SIGNAL(triggered()),this,SLOT(setip()));
+       connect(&setip,    SIGNAL(triggered()), this, SLOT(setip()));
+       connect(&setname,  SIGNAL(triggered()), this, SLOT(set_dev_name()));
 
         QPoint pos;
         QMenu menu(this->devlist);
         menu.addAction(&logindev);
         menu.addAction(&setip);
+        menu.addAction(&setname);
         menu.exec(QCursor::pos());  //在当前鼠标位置显示
 
     }
