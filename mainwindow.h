@@ -15,6 +15,7 @@
 #include "zedit/ZGroup.h"
 #include "devname/devnameset.h"
 
+
 namespace Ui {
 class MainWindow;
 }
@@ -40,6 +41,14 @@ enum {
     LX_DEV = 0x00,
     SWITCH_DEV = 0x11,
     DEV_MAX_TYPE = 0xff
+};
+
+enum {
+    NO_PROCESS = 0x00,
+    REMOTE_PROCESS = 0x01,
+    IE_PROCESS ,
+    FTP_PROCESS,
+    PARA_SKIP_PROCESS
 };
 
 class TabType
@@ -77,8 +86,12 @@ public:
     ZQTreeWidget *              devlist;
     ZProcessWidget *            vncpro;
     ZProcessWidget *            webpro;
+    ZProcessWidget *            skippro;
+    ZProcessWidget *            ftppro;
+    QList<ZProcessWidget *>     tabpro;
     QVector<DEV_DATA_INFO>      devinfolist;   //存储已经添加的设备信息列表
-    quint8                      tab[2];
+    quint8                      tab[4];
+    QList<quint8>               tabprotype;
 
     QTabWidget   *              centertab;
     ZDockWidget  *              centerzdock;
@@ -102,11 +115,13 @@ public slots:
     void set_dev_name(void);
 
     void restart_dev_search(void);
+    void remote_skip_dev(void);
+    void ftp_dev(void);
 
 
 public slots:
     void toolBarFloat(bool topLevel);
-    void foucschange(QObject *object);
+//    void foucschange(QObject *object);
     void vnckeyconnect();
 
 
@@ -121,13 +136,16 @@ public:
     void createDockWindows(void);
     void destory_ie(void);
     void destory_vnc(void);
+    void destory_skip(void);
+    void destory_ftp(void);
+    void set_process_type(quint8 type);
     DWORD  get_paraid(void);
     quint8 get_dev_type(int dev);
 
-     void keyPressEvent(QKeyEvent *);
-     void keyReleaseEvent(QKeyEvent *);
+//     void keyPressEvent(QKeyEvent *);
+//     void keyReleaseEvent(QKeyEvent *);
 //     void mousePressEvent(QMouseEvent *mouse);
-     bool eventFilter(QObject *, QEvent *);
+//     bool eventFilter(QObject *, QEvent *);
 };
 
 

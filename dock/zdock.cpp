@@ -107,13 +107,23 @@ int ZProcessWidget::creat_process(QWidget *parent)
     WId wid = 0;
     int i = 0;
 
-    do
+//    do
+//    {
+//       Sleep(100);
+//       wid = (WId)FindWindow(class_n.toStdWString().c_str(),  w_name.toStdWString().c_str());
+//       i++;
+//    }
+//    while(wid == 0 && i < 10000);
+
+
+    while(wid == 0 && i < 100)
     {
-       Sleep(100);
-       wid = (WId)FindWindow(class_n.toStdWString().c_str(),  w_name.toStdWString().c_str());
-       i++;
+        QEventLoop eventloop;
+
+        QTimer::singleShot(100, &eventloop, SLOT(quit()));
+        eventloop.exec();
+        wid = (WId)FindWindow( class_n.toStdWString().c_str(),  w_name.toStdWString().c_str());
     }
-    while(wid == 0 && i < 10000);
 
     if(wid == 0)
     {

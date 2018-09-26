@@ -74,6 +74,7 @@ MainWindow::MainWindow(QWidget *parent) :
     this->setMaximumSize(MAIN_SIZE_MAX);
     setWindowFlags(windowFlags() | Qt::WindowMaximizeButtonHint);
 
+    setWindowTitle("HNDZ L4");
     sgin       = new ZMenu("登录", this);
 
     para_skip  = new ZMenu("参数预览", this);
@@ -102,6 +103,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     vncpro = NULL;
     webpro = NULL;
+    skippro = NULL;
 
 }
 
@@ -213,12 +215,21 @@ void MainWindow::destory_vnc(void)
     }
 }
 
+void MainWindow::destory_skip(void)
+{
+    if(skippro != NULL)
+    {
+        delete skippro;
+        skippro = NULL;
+    }
+}
+
 
 //浏览当前设备的参数
 void MainWindow::add_para_action(void)
 {
-    para_skip->add_action("浏览当前", "浏览当前设备");
-//    connect(para_skip->get_action("浏览当前"), SIGNAL(triggered()), this, SLOT(restart_dev_search()));
+    para_skip->add_action("浏览当前", "浏览当前设备",true);
+    connect(para_skip->get_action("浏览当前"), SIGNAL(triggered()), this, SLOT(remote_skip_dev()));
 
 }
 
@@ -261,13 +272,32 @@ void MainWindow::removeMtab(int index)
 {
     if(centertab != NULL)
     {
-        if(tab[index] == LX_DEV)
+//        if(tab[index] == LX_DEV)
+//        {
+//            destory_vnc();
+//        }
+//        else
+//        {
+//            destory_ie();
+//        }
+        if(index >= tabprotype.size())
         {
-            destory_vnc();
+            qDebug() << "removetab index err!" << index;
         }
-        else
+        switch (tabprotype.at(index))
         {
-            destory_ie();
+            case REMOTE_PROCESS:
+                destory_vnc();
+            break;
+            case IE_PROCESS:
+                destory_ie();
+            break;
+            case FTP_PROCESS:
+            break;
+            case PARA_SKIP_PROCESS:
+            break;
+        default:
+            break;
         }
 
         centertab->removeTab(index);
@@ -389,6 +419,159 @@ void MainWindow::remotedev(void)
 
 }
 
+
+void MainWindow::remote_skip_dev(void)
+{
+    if(skippro != NULL)
+    {
+        qDebug("Have dev!");
+        return ;
+    }
+
+//    if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
+//    {
+//        qDebug("rogindev devlist no list!");
+//        return;
+//    }
+//    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
+
+
+//    if(get_dev_type(devlist->get_current_row()) != 0x00)
+//    {
+//        qDebug("dev type is LX!");
+//        return ;
+//    }
+
+//    QString logip = curItem->text(1);
+
+    QString cmd = QString("D:/L4/qh/lx_hebing/Lx/bin/debug/win/L3Config.exe");
+
+    skippro = new ZProcessWidget(cmd, "L3Config", "Qt5QWindowIcon");
+
+    skippro->creat_process(centertab);
+
+//    zattachWindowThreadInput(webpro->get_pid_info().dwThreadId);
+    centertab->addTab(skippro->get_widget(), tr("浏览当前设备"));
+    centertab->setCurrentWidget(skippro->get_widget());
+    this->resize(this->width()+1, this->height()+1);
+
+    WId wid = 0;
+    int i = 0;
+
+    while(wid == 0)
+    {
+        QEventLoop eventloop;
+
+        QTimer::singleShot(100, &eventloop, SLOT(quit()));
+        eventloop.exec();
+        wid = (WId)FindWindow( L"Qt5QWindowIcon", L"Dialog");
+    }
+
+
+    if(wid == 0)
+    {
+        qDebug("wid 0 error!");
+        return ;
+    }
+    else
+        qDebug() << "find wid!";
+    QWindow * qwin_p = QWindow::fromWinId(wid);
+
+    qwin_p->setFlags(qwin_p->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                       | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
+                       | Qt::BypassWindowManagerHint);
+    QWidget * qwid_p = QWidget::createWindowContainer(qwin_p, centertab);
+
+    qwid_p->setFocusPolicy(Qt::WheelFocus);
+
+
+    qDebug() << "current index " << centertab->currentIndex();
+
+    centertab->removeTab(0);
+    centertab->addTab(qwid_p, tr("浏览当前设备"));
+    centertab->setCurrentWidget(qwid_p);
+     qDebug() << "current index " << centertab->currentIndex();
+
+     this->resize(this->width()+1, this->height()+1);
+
+     wid = 0;
+     while(wid == 0)
+     {
+         QEventLoop eventloop;
+
+         QTimer::singleShot(100, &eventloop, SLOT(quit()));
+         eventloop.exec();
+         wid = (WId)FindWindow( L"Qt5QWindowIcon", L"MainWindow");
+     }
+
+
+     if(wid == 0)
+     {
+         qDebug("wid 0 error!");
+         return ;
+     }
+     else
+         qDebug() << "find wid!";
+     QWindow * nqwin_p = QWindow::fromWinId(wid);
+
+     nqwin_p->setFlags(qwin_p->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                        | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
+                        | Qt::BypassWindowManagerHint);
+     QWidget * nqwid_p = QWidget::createWindowContainer(nqwin_p, centertab);
+
+     nqwid_p->setFocusPolicy(Qt::WheelFocus);
+
+
+     qDebug() << "current index " << centertab->currentIndex();
+
+     centertab->removeTab(0);
+     centertab->addTab(nqwid_p, tr("浏览当前设备"));
+     centertab->setCurrentWidget(nqwid_p);
+      qDebug() << "current index " << centertab->currentIndex();
+
+      this->resize(this->width()+1, this->height()+1);
+
+
+
+}
+void MainWindow::ftp_dev(void)
+{
+    if(skippro != NULL)
+    {
+        qDebug("Have dev!");
+        return ;
+    }
+
+//    if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
+//    {
+//        qDebug("rogindev devlist no list!");
+//        return;
+//    }
+//    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
+
+
+//    if(get_dev_type(devlist->get_current_row()) != 0x00)
+//    {
+//        qDebug("dev type is LX!");
+//        return ;
+//    }
+
+//    QString logip = curItem->text(1);
+
+    QString cmd = QString("D:/zty/ftp/build-ftp-Desktop_Qt_5_4_1_MinGW_32bit-Debug/debug/ftp.exe");
+
+    skippro = new ZProcessWidget(cmd, "FTP", "Qt5QWindowIcon");
+
+    skippro->creat_process(centertab);
+
+//    zattachWindowThreadInput(webpro->get_pid_info().dwThreadId);
+    centertab->addTab(skippro->get_widget(), tr("浏览当前设备"));
+    centertab->setCurrentWidget(skippro->get_widget());
+
+
+//    centertab->setTabEnabled(, );
+
+}
 
 void MainWindow::setip(void)
 {
@@ -542,10 +725,15 @@ void MainWindow::adddevlist(DEV_DATA_INFO  devinfo)
 
 }
 
-void MainWindow::foucschange(QObject *object)
+void MainWindow::set_process_type(quint8 type)
 {
-    qDebug("foucs change !");
+       tabprotype.append(type);
 }
+
+//void MainWindow::foucschange(QObject *object)
+//{
+//    qDebug("foucs change !");
+//}
 
 //void MainWindow::plaint(void)
 //{
@@ -554,28 +742,28 @@ void MainWindow::foucschange(QObject *object)
 
 //}
 
-void MainWindow::keyPressEvent(QKeyEvent * key)
-{
+//void MainWindow::keyPressEvent(QKeyEvent * key)
+//{
 //     qDebug("keyPressEvent start\n");
 //     zattachWindowThreadInput(vncpi.dwThreadId);
 //     attact_key(vnc_hand);
-}
+//}
 
-void MainWindow::keyReleaseEvent(QKeyEvent * key)
-{
+//void MainWindow::keyReleaseEvent(QKeyEvent * key)
+//{
 //     qDebug("keyReleaseEvent start\n");
 //    zattachWindowThreadInput(vncpi.dwThreadId);
-}
+//}
 
 //void MainWindow::mousePressEvent(QMouseEvent *mouse)
 //{
 //     qDebug("mouse press\n");
 //}
 
-bool MainWindow::eventFilter(QObject * obj, QEvent * event)
-{
-    return false;
-}
+//bool MainWindow::eventFilter(QObject * obj, QEvent * event)
+//{
+//    return false;
+//}
 
 MainWindow::~MainWindow()
 {
