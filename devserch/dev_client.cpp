@@ -88,6 +88,7 @@ void ZDEV_CLIENT::set_dev_name(DEV_DATA_INFO data)
     memset(name, 0x00, sizeof(name));
     memcpy(name, data.mac, sizeof(data.mac));
     memcpy(name+sizeof(data.mac), data.name, sizeof(data.name));
+    qDebug() << "dev tyep " << data.devtype;
     dev_send_data(SET_DEV_NAME, data.devtype, name, DEV_AUTO_DEF_ADDR, 27);
 
 }

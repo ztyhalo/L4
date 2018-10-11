@@ -1,5 +1,12 @@
 <RCC>
     <qresource prefix="/">
         <file>save.png</file>
+        <file>open.png</file>
+        <file>hn.jpg</file>
+        <file>bar.jpg</file>
+        <file>rogin.jpg</file>
+        <file>find.png</file>
+        <file>exit.png</file>
+        <file>exit.jpg</file>
     </qresource>
 </RCC>

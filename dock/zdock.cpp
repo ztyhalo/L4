@@ -56,6 +56,7 @@ void kill_w_process(PROCESS_INFORMATION proid)
 {
     if (proid.hProcess && proid.hThread )
     {
+        qDebug("kill process!!!");
         DWORD dwEC = 0;
 
         BOOL b = GetExitCodeProcess(proid.hProcess,   &dwEC);
@@ -104,7 +105,7 @@ int ZProcessWidget::creat_process(QWidget *parent)
         return 0;
     }
 
-    WId wid = 0;
+     wid = 0;
     int i = 0;
 
 //    do
@@ -140,6 +141,42 @@ int ZProcessWidget::creat_process(QWidget *parent)
     qwid_p->setFocusPolicy(Qt::WheelFocus);
 //    qwid_p->activateWindow();
 
+    return 1;
+}
+int ZProcessWidget::restart_process(QString w, QString c, QWidget *parent)
+{
+    WId wid = 0;
+//    int i = 0;
+
+    while(wid == 0)
+    {
+        QEventLoop eventloop;
+
+        QTimer::singleShot(100, &eventloop, SLOT(quit()));
+        eventloop.exec();
+        wid = (WId)FindWindow( c.toStdWString().c_str(), w.toStdWString().c_str());
+    }
+
+    if(wid == 0)
+    {
+        qDebug("wid 0 error!");
+        return 0;
+    }
+    else
+        qDebug() << "find wid!";
+
+    delete qwin_p;
+    delete qwid_p;
+
+
+    qwin_p = QWindow::fromWinId(wid);
+
+    qwin_p->setFlags(qwin_p->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                       | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
+                       | Qt::BypassWindowManagerHint);
+    qwid_p = QWidget::createWindowContainer(qwin_p, parent);
+
+    qwid_p->setFocusPolicy(Qt::WheelFocus);
     return 1;
 }
 

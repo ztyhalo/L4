@@ -24,6 +24,6 @@ int main(int argc, char *argv[])
 //    QDesktopServices::openUrl(QUrl("http://192.168.1.254"));
 //    search.dev_send_data(0x1003, 0x12);
 
-
+//    a.installNativeEventFilter(&w);
     return a.exec();
 }

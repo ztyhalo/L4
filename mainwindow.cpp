@@ -10,10 +10,11 @@
 QRect  GetScreenInfo(void)
 {
    QDesktopWidget* desktopWidget = QApplication::desktop();
-//       QRect deskRect = desktopWidget->availableGeometry();
-   QRect screenRect = desktopWidget->screenGeometry();
+       QRect deskRect = desktopWidget->availableGeometry();
+//   QRect screenRect = desktopWidget->screenGeometry();
 
-   return screenRect;
+//   return screenRect;
+   return deskRect;
 }
 
 void attachWindowThreadInput(WId remoteWindowId)
@@ -49,6 +50,28 @@ void zattachWindowThreadInput(DWORD remoteThreadId)
     if (currentThreadId != remoteThreadId) {
 
         int err = AttachThreadInput(currentThreadId, remoteThreadId, true);
+
+        if (!err)
+            qErrnoWarning("AttachThreadInput");
+        else
+        {
+            qDebug("set successful!");
+        }
+    }
+    else
+    {
+        qDebug("no set!");
+    }
+}
+
+
+void reattachWindowThreadInput(DWORD remoteThreadId)
+{
+    DWORD currentThreadId = GetCurrentThreadId();
+
+    if (currentThreadId != remoteThreadId) {
+
+        int err = AttachThreadInput(remoteThreadId ,currentThreadId, true);
         qDebug() << "err " << err;
 
         if (!err)
@@ -74,70 +97,115 @@ MainWindow::MainWindow(QWidget *parent) :
     this->setMaximumSize(MAIN_SIZE_MAX);
     setWindowFlags(windowFlags() | Qt::WindowMaximizeButtonHint);
 
-    setWindowTitle("HNDZ L4");
-    sgin       = new ZMenu("登录", this);
+    setWindowIcon(QIcon(":hn.jpg"));
+    setWindowTitle(" HNDZ L4");
 
-    para_skip  = new ZMenu("参数预览", this);
-    dev_search = new ZMenu("设备搜索", this);
-    net_pro    = new ZMenu("远程操作", this);
-    view       = new ZMenu("视图", this);
+    sgin       = new ZMenu("登录(R)", this);
+
+//    para_skip  = new ZMenu("参数预览", this);
+    dev_search = new ZMenu("设备搜索(S)", this);
+//    net_pro    = new ZMenu("远程操作", this);
+    view       = new ZMenu("视图(V)", this);
 
     add_sgin_action();
-    add_para_action();
-    add_pro_action();
+//    add_para_action();
+//    add_pro_action();
     add_search_action();
 
     setWindowOpacity(1);
     QRect win = GetScreenInfo();
 
     setMinimumSize(win.width()/3,win.height()/3);
-    resize(win.width()/2,win.height()/2);
-
+    resize(win.width()/3+ 50,win.height()/2);
+    qDebug() << win.width() << win.height();
+//    resize(win.width(),win.height());
     createDockWindows();
 
     connect(&devsearch, SIGNAL(add_dev_sig(DEV_DATA_INFO)), this, SLOT(adddevlist(DEV_DATA_INFO)));
+//    connect(devlist, SIGNAL(currentItemChanged(QTreeWidgetItem*,QTreeWidgetItem*)),
+//            this, SLOT(changeButton()));
 
+    timsize = 0;
     tim = new QTimer(this);
-    connect(tim, SIGNAL(timeout()), this, SLOT(vnckeyconnect()));
+    connect(tim, SIGNAL(timeout()), this, SLOT(keyconnect()));
 
-
-    vncpro = NULL;
-    webpro = NULL;
-    skippro = NULL;
 
 }
-
-void MainWindow::vnckeyconnect(void)
+//开启定时器
+void MainWindow::start_timer(int interval)
 {
-   QWidget      *  vnctab = vncpro->get_widget();
-  if(vnctab != NULL)
-  {
-    if(vnctab->isActiveWindow())
+    if(timsize == 0)
     {
-        if((GetAsyncKeyState(VK_LBUTTON)) > 0)
-        {
-            QPoint mousepos;
-            mousepos = QCursor::pos();
-
-
-            QPoint GlobalPoint(vnctab->mapToGlobal(QPoint(0, 0)));//获取控件在窗体中的坐标
-            int x = GlobalPoint.x();
-            int y = GlobalPoint.y();
-
-            qDebug("x %d y %d mouse x %d mouse y %d", x, y, mousepos.x(), mousepos.y());
-
-            if(mousepos.x() > x && mousepos.y() > y)
-            {
-                qDebug("is active window!");
-                vnctab->setFocus(Qt::TabFocusReason);
-            }
-        }
-     }
-    else
-    {
-        qDebug("no active windwo!");
+        tim->start(interval);
+        timsize++;
     }
-  }
+}
+void MainWindow::stop_timer(void)
+{
+    if(timsize > 0)
+    {
+        timsize--;
+    }
+    else
+        tim->stop();
+}
+
+//鼠标检测事件
+void MainWindow::keyconnect(void)
+{
+    int index = centertab->currentIndex();
+    quint8 ty = tabpro[index].type;
+    if(ty != REMOTE_PROCESS && ty != PARA_SKIP_PROCESS)
+    {
+        return;
+    }
+
+     QWidget      *  vnctab = centertab->currentWidget();
+    if(vnctab != NULL)
+    {
+
+        if(vnctab->isActiveWindow())
+        {
+
+             SHORT kye = GetAsyncKeyState(VK_LBUTTON);
+             if(kye != 0)
+            {
+                QPoint mousepos;
+                mousepos = QCursor::pos();
+
+
+                QPoint GlobalPoint(vnctab->mapToGlobal(QPoint(0, 0)));//获取控件在窗体中的坐标
+                int x = GlobalPoint.x();
+                int y = GlobalPoint.y();
+
+
+                if(mousepos.x() > x && mousepos.y() > y)
+                {
+                    vnctab->setFocus(Qt::TabFocusReason);
+                }
+            }
+         }
+    }
+}
+
+
+void MainWindow::changeButton()
+{
+//    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
+
+    quint8 ty = get_dev_type(devlist->get_current_row());
+
+    switch (ty)
+    {
+        case LX_DEV:
+            para_skip->action_enable(true);
+            net_pro->action_enable(true);
+        break;
+        case SWITCH_DEV:
+            para_skip->action_enable(false);
+            net_pro->action_enable(false);
+        break;
+    }
 }
 
 //登录设备与注销设备
@@ -146,89 +214,83 @@ void MainWindow::add_sgin_action(void)
 {
     sgin->add_action("登录");
     sgin->add_action("注销");
+    sgin->get_action("登录")->setIcon(QIcon(":rogin.jpg"));
+    sgin->get_action("注销")->setIcon(QIcon(":exit.jpg"));
+
+    roginBar = addToolBar(tr("登录"));
+    roginBar->addAction(sgin->get_action("登录"));
+    roginBar->addAction(sgin->get_action("注销"));
+    roginBar->setMovable(false);
 
     connect(sgin->get_action("登录"), SIGNAL(triggered()), this, SLOT(rogindev()));
 }
 
+
+
 void MainWindow::rogindev(void)
 {
+ ;
+}
+//ie 登录配置三旺服务器
+void MainWindow::ieconfig(void)
+{
 
-    if(webpro != NULL)
-    {
-        qDebug("Have dev!");
-        return ;
-    }
+    QString logip;
 
-    if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
+    if(tab_pro_init( logip, IE_PROCESS) == false)
     {
-        qDebug("rogindev devlist no list!");
+        qDebug() << "skip init fail!";
         return;
     }
-    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
-
-    quint8 ty = get_dev_type(devlist->get_current_row());
-
-    if(ty == 0x00 || ty == DEV_MAX_TYPE)
-    {
-        qDebug("dev type is LX!");
-        return ;
-    }
-
-    QString logip = curItem->text(1);
     QString cmd = QString("C:/Program Files/Internet Explorer/iexplore.exe -k"
                           " http://%1").arg(logip);
     QString w_string = QString("http://%1/ - Windows Internet Explorer").arg(logip);
 
-    webpro = new ZProcessWidget(cmd, w_string, "IEFrame");
+    ZProcessWidget * nwebpro = new ZProcessWidget(cmd, w_string, "IEFrame");
 
-    webpro->creat_process(centertab);
+    nwebpro->creat_process(centertab);
 
-    zattachWindowThreadInput(webpro->get_pid_info().dwThreadId);
-    centertab->addTab(webpro->get_widget(), tr("登录"));
-    centertab->setCurrentWidget(webpro->get_widget());
+    zattachWindowThreadInput(nwebpro->get_pid_info().dwThreadId);
+    add_process(nwebpro, IE_PROCESS, logip);
+    QString name = "ie设置 "+ logip;
+    centertab->addTab(nwebpro->get_widget(), name);//tr("登录"));
+    centertab->setCurrentWidget(nwebpro->get_widget());
 
-    tab[centertab->currentIndex()]  = SWITCH_DEV;
     this->resize(this->width()+1, this->height()+1);
-
-
 }
 
-void MainWindow::destory_ie(void)
-{
-    if(webpro != NULL)
-    {
-        delete webpro;
-        webpro = NULL;
-    }
-}
+//void MainWindow::destory_ie(void)
+//{
+//    if(webpro != NULL)
+//    {
+//        delete webpro;
+//        webpro = NULL;
+//    }
+//}
 
 void MainWindow::destory_vnc(void)
 {
-    if(vncpro != NULL)
-    {
-        delete vncpro;
-        vncpro = NULL;
-    }
-    if(tim != NULL)
-    {
-        tim->stop();
-    }
+//    if(tim != NULL)
+//    {
+//        tim->stop();
+//    }
+//    vnctab = NULL;
 }
 
-void MainWindow::destory_skip(void)
-{
-    if(skippro != NULL)
-    {
-        delete skippro;
-        skippro = NULL;
-    }
-}
+//void MainWindow::destory_skip(void)
+//{
+//    if(skippro != NULL)
+//    {
+//        delete skippro;
+//        skippro = NULL;
+//    }
+//}
 
 
 //浏览当前设备的参数
 void MainWindow::add_para_action(void)
 {
-    para_skip->add_action("浏览当前", "浏览当前设备",true);
+    para_skip->add_action("浏览当前", "浏览当前设备");
     connect(para_skip->get_action("浏览当前"), SIGNAL(triggered()), this, SLOT(remote_skip_dev()));
 
 }
@@ -249,7 +311,11 @@ void MainWindow::restart_dev_search(void)
 void MainWindow::add_search_action(void)
 {
     dev_search->add_action( "搜索所有", "搜索所有设备", true);
-//    connect(dev_search->get_action("搜索所有"), SIGNAL(triggered()), &devsearch, SLOT(start_skip_dev()));
+
+    dev_search->get_action("搜索所有")->setIcon(QIcon(":find.png"));
+    skipBar = addToolBar(tr("搜索所有"));
+    skipBar->addAction(dev_search->get_action("搜索所有"));
+    skipBar->setMovable(false);
     connect(dev_search->get_action("搜索所有"), SIGNAL(triggered()), this, SLOT(restart_dev_search()));
 }
 
@@ -272,35 +338,21 @@ void MainWindow::removeMtab(int index)
 {
     if(centertab != NULL)
     {
-//        if(tab[index] == LX_DEV)
-//        {
-//            destory_vnc();
-//        }
-//        else
-//        {
-//            destory_ie();
-//        }
-        if(index >= tabprotype.size())
+        qDebug() << "index " <<index;
+        if(index >= tabpro.size())
         {
             qDebug() << "removetab index err!" << index;
         }
-        switch (tabprotype.at(index))
-        {
-            case REMOTE_PROCESS:
-                destory_vnc();
-            break;
-            case IE_PROCESS:
-                destory_ie();
-            break;
-            case FTP_PROCESS:
-            break;
-            case PARA_SKIP_PROCESS:
-            break;
-        default:
-            break;
-        }
 
+        quint8 ty = tabpro[index].type;
+        if(ty == REMOTE_PROCESS || ty == PARA_SKIP_PROCESS)
+        {
+            stop_timer();
+        }
         centertab->removeTab(index);
+        tabpro[index].destory_tabprocess();
+        tabpro.removeAt(index);
+
     }
 
 }
@@ -319,8 +371,8 @@ void MainWindow::createDockWindows(void)
     dock->setWidget(devlist);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
     view->get_menu()->addAction(dock->toggleViewAction());
-    connect(devlist,SIGNAL(itemClicked(QTreeWidgetItem*,int)),
-              this,SLOT(devlistclick(QTreeWidgetItem* ,int)));
+//    connect(devlist,SIGNAL(itemClicked(QTreeWidgetItem*,int)),
+//              this,SLOT(devlistclick(QTreeWidgetItem* ,int)));
     devlist->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(devlist,SIGNAL(customContextMenuRequested(const QPoint&)),
             this,SLOT(popMenu(const QPoint&)));//检测鼠标右键
@@ -328,22 +380,20 @@ void MainWindow::createDockWindows(void)
 
     devlist->setFocusPolicy(Qt::ClickFocus);
 
-    qDebug("devlist is 0x%x!",devlist->focusPolicy());
 
-
-    centerzdock = new ZDockWidget(this, tr("窗体"));
+    centerzdock = new ZDockWidget(this, tr("操作窗口"));
 
     setCentralWidget(centerzdock);
     connect(centerzdock,SIGNAL(topLevelChanged(bool)),this,SLOT(toolBarFloat(bool)));
 
-    qDebug("windows is 0x%x!",centerzdock->focusPolicy());
     centertab = new QTabWidget(centerzdock);
-//    QLabel * filename = new QLabel(tr("File name:"));
-//    centertab->addTab(filename, tr("General"));
 
     centertab->setTabsClosable(TRUE);
 
     connect(centertab, SIGNAL(tabCloseRequested(int)), this, SLOT(removeMtab(int)));
+    connect(centertab, SIGNAL(currentChanged(int)), this, SLOT(tabchange(int)));
+    connect(centertab, SIGNAL(tabBarClicked(int)), this, SLOT(tabchange(int)));
+
     centerzdock->setWidget(centertab);
 
     centertab->setFocusPolicy(Qt::ClickFocus);
@@ -377,199 +427,148 @@ void MainWindow::devlistclick(QTreeWidgetItem* item,  int val)
 
 }
 
+ void MainWindow::tabchange(int index)
+ {
+     if(index >= 0)
+     {
+        centertab->widget(index)->setFocus(Qt::TabFocusReason);
+     }
+ }
+
 void MainWindow::remotedev(void)
 {
-    if(vncpro != NULL)
-    {
-        qDebug("Have dev!");
-        return ;
-    }
+    QString logip;
 
-    if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
+    if(tab_pro_init( logip, REMOTE_PROCESS) == false)
     {
-        qDebug("rogindev devlist no list!");
+        qDebug() << "skip init fail!";
         return;
     }
-    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
+//    QString cmd = QString("C:/Program Files/TightVNC/tvnviewer.exe %1").arg(logip);
+    QString cmd = QString("tvnviewer.exe %1").arg(logip);
+    QString na = QString("VNC-%1").arg(logip);
 
+    ZProcessWidget * nvncpro = new ZProcessWidget(cmd, na, "TvnWindowClass");
+//    ZProcessWidget * nvncpro = new ZProcessWidget(cmd, "Qt for Embedded Linux VNC Server - TightVNC Viewer",
+//                                                  "TvnWindowClass");
 
-    if(get_dev_type(devlist->get_current_row()) != 0x00)
-    {
-        qDebug("dev type is LX!");
-        return ;
-    }
+    nvncpro->creat_process(centertab);
 
-    QString logip = curItem->text(1);
+    start_timer();
 
-    QString cmd = QString("C:/Program Files/TightVNC/tvnviewer.exe %1").arg(logip);
+    add_process(nvncpro, REMOTE_PROCESS, logip);
 
-    vncpro = new ZProcessWidget(cmd, "Qt for Embedded Linux VNC Server - TightVNC Viewer", "TvnWindowClass");
+    zattachWindowThreadInput(nvncpro->get_pid_info().dwThreadId);
+    centertab->addTab(nvncpro->get_widget(), tr("远程")+logip);
 
-    vncpro->creat_process(centertab);
+    centertab->setCurrentWidget(nvncpro->get_widget());
 
-    tim->start(1000);
-
-    centertab->addTab(vncpro->get_widget(), tr("连接"));
-    centertab->setCurrentWidget(vncpro->get_widget());
     qDebug("vnc tab index is %d", centertab->currentIndex());
-     tab[centertab->currentIndex()]  = LX_DEV;
-    this->resize(this->width()+1, this->height()+1);
 
-//    centertab->setTabEnabled(, );
+    this->resize(this->width()+1, this->height()+1);
 
 }
 
 
+bool  MainWindow::tab_pro_init(QString &ipaddr, quint8 ty)
+{
+    if(devlist== NULL)
+    {
+        qDebug("rogindev devlist no list!");
+        return false;
+    }
+    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
+
+
+    ipaddr = curItem->text(1);
+    int tab = tab_is_enable(ty, ipaddr);
+    if(tab != -1)
+    {
+        qDebug() << ipaddr <<"have init!";
+        centertab->setCurrentIndex(tab);
+        return false;
+    }
+    return true;
+}
+
 void MainWindow::remote_skip_dev(void)
 {
-    if(skippro != NULL)
+
+    QString logip;
+
+
+    if(tab_pro_init( logip, PARA_SKIP_PROCESS) == false)
     {
-        qDebug("Have dev!");
-        return ;
+        qDebug() << "skip init fail!";
+        return;
     }
 
-//    if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
-//    {
-//        qDebug("rogindev devlist no list!");
-//        return;
-//    }
-//    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
-
-
-//    if(get_dev_type(devlist->get_current_row()) != 0x00)
-//    {
-//        qDebug("dev type is LX!");
-//        return ;
-//    }
-
-//    QString logip = curItem->text(1);
-
-    QString cmd = QString("D:/L4/qh/lx_hebing/Lx/bin/debug/win/L3Config.exe");
-
-    skippro = new ZProcessWidget(cmd, "L3Config", "Qt5QWindowIcon");
+//    QString cmd = QString("D:/L4/qh/lx_hebing/Lx/bin/debug/win/L3Config.exe");
+    QString cmd = QString("L3Config.exe --workmode=client --server=%1").arg(logip);;
+    QString na = QString("L3Ftp-%1").arg(logip);
+    ZProcessWidget * skippro = new ZProcessWidget(cmd, na, "Qt5QWindowIcon");
 
     skippro->creat_process(centertab);
 
-//    zattachWindowThreadInput(webpro->get_pid_info().dwThreadId);
-    centertab->addTab(skippro->get_widget(), tr("浏览当前设备"));
+    zattachWindowThreadInput(skippro->get_pid_info().dwThreadId);
+    start_timer();
+    add_process(skippro, PARA_SKIP_PROCESS, logip);
+    centertab->addTab(skippro->get_widget(), QString("浏览%1初始化").arg(logip));
     centertab->setCurrentWidget(skippro->get_widget());
+    int index = centertab->currentIndex();
+
     this->resize(this->width()+1, this->height()+1);
 
-    WId wid = 0;
-    int i = 0;
 
-    while(wid == 0)
-    {
-        QEventLoop eventloop;
+    skippro->restart_process(QString("Dialog-%1").arg(logip), "Qt5QWindowIcon", centertab);
 
-        QTimer::singleShot(100, &eventloop, SLOT(quit()));
-        eventloop.exec();
-        wid = (WId)FindWindow( L"Qt5QWindowIcon", L"Dialog");
-    }
-
-
-    if(wid == 0)
-    {
-        qDebug("wid 0 error!");
-        return ;
-    }
-    else
-        qDebug() << "find wid!";
-    QWindow * qwin_p = QWindow::fromWinId(wid);
-
-    qwin_p->setFlags(qwin_p->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
-                       | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
-                       | Qt::BypassWindowManagerHint);
-    QWidget * qwid_p = QWidget::createWindowContainer(qwin_p, centertab);
-
-    qwid_p->setFocusPolicy(Qt::WheelFocus);
-
-
-    qDebug() << "current index " << centertab->currentIndex();
-
-    centertab->removeTab(0);
-    centertab->addTab(qwid_p, tr("浏览当前设备"));
-    centertab->setCurrentWidget(qwid_p);
-     qDebug() << "current index " << centertab->currentIndex();
+//     zattachWindowThreadInput(skippro->get_pid_info().dwThreadId);
+//     tim->start(100);
+     centertab->removeTab(index);
+     centertab->addTab(skippro->get_widget(), QString("浏览%1密码").arg(logip));
+     centertab->setCurrentWidget(skippro->get_widget());
 
      this->resize(this->width()+1, this->height()+1);
 
-     wid = 0;
-     while(wid == 0)
-     {
-         QEventLoop eventloop;
 
-         QTimer::singleShot(100, &eventloop, SLOT(quit()));
-         eventloop.exec();
-         wid = (WId)FindWindow( L"Qt5QWindowIcon", L"MainWindow");
-     }
+     skippro->restart_process(QString("L3Config-%1").arg(logip), "Qt5QWindowIcon", centertab);
 
+     centertab->removeTab(index);
 
-     if(wid == 0)
-     {
-         qDebug("wid 0 error!");
-         return ;
-     }
-     else
-         qDebug() << "find wid!";
-     QWindow * nqwin_p = QWindow::fromWinId(wid);
+     centertab->addTab(skippro->get_widget(), QString("浏览%1参数").arg(logip));
+     centertab->setCurrentWidget(skippro->get_widget());
 
-     nqwin_p->setFlags(qwin_p->flags() | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
-                        | Qt::WindowType_Mask | Qt::MSWindowsFixedSizeDialogHint | Qt::MSWindowsOwnDC
-                        | Qt::BypassWindowManagerHint);
-     QWidget * nqwid_p = QWidget::createWindowContainer(nqwin_p, centertab);
-
-     nqwid_p->setFocusPolicy(Qt::WheelFocus);
-
-
-     qDebug() << "current index " << centertab->currentIndex();
-
-     centertab->removeTab(0);
-     centertab->addTab(nqwid_p, tr("浏览当前设备"));
-     centertab->setCurrentWidget(nqwid_p);
-      qDebug() << "current index " << centertab->currentIndex();
-
-      this->resize(this->width()+1, this->height()+1);
+     this->resize(this->width()+1, this->height()+1);
 
 
 
 }
 void MainWindow::ftp_dev(void)
 {
-    if(skippro != NULL)
+
+    QString logip;
+
+    if(tab_pro_init( logip, FTP_PROCESS) == false)
     {
-        qDebug("Have dev!");
-        return ;
+        qDebug() << "skip init fail!";
+        return;
     }
 
-//    if(devlist== NULL)                                   //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
-//    {
-//        qDebug("rogindev devlist no list!");
-//        return;
-//    }
-//    QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
+//  QString cmd = QString("D:/zty/ftp/build-ftp-Desktop_Qt_5_4_1_MinGW_32bit-Debug/debug/ftp.exe");
+    QString cmd = QString("ftp.exe %1").arg(logip);
 
+    ZProcessWidget * ftppro = new ZProcessWidget(cmd, QString("FTP-%1").arg(logip), "Qt5QWindowIcon");
 
-//    if(get_dev_type(devlist->get_current_row()) != 0x00)
-//    {
-//        qDebug("dev type is LX!");
-//        return ;
-//    }
-
-//    QString logip = curItem->text(1);
-
-    QString cmd = QString("D:/zty/ftp/build-ftp-Desktop_Qt_5_4_1_MinGW_32bit-Debug/debug/ftp.exe");
-
-    skippro = new ZProcessWidget(cmd, "FTP", "Qt5QWindowIcon");
-
-    skippro->creat_process(centertab);
+    ftppro->creat_process(centertab);
 
 //    zattachWindowThreadInput(webpro->get_pid_info().dwThreadId);
-    centertab->addTab(skippro->get_widget(), tr("浏览当前设备"));
-    centertab->setCurrentWidget(skippro->get_widget());
+    add_process(ftppro, FTP_PROCESS, logip);
+    centertab->addTab(ftppro->get_widget(), QString("ftp-%1").arg(logip));
+    centertab->setCurrentWidget(ftppro->get_widget());
+//    this->resize(this->width()+10, this->height()+50);
+    ftppro->get_widget()->hide();
+    ftppro->get_widget()->show();
 
-
-//    centertab->setTabEnabled(, );
 
 }
 
@@ -642,34 +641,54 @@ void MainWindow::set_name_text(QString n)
 //在设备列表上点击鼠标右键
 void MainWindow::popMenu(const QPoint& point)
 {
-
-    if(devlist->hasFocus())
-        qDebug("devlist has fouces!");
-    else
-       qDebug("devlist no has fouces!");
+    if(devlist == NULL)return;                            //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
     QTreeWidgetItem* curItem = devlist->currentItem();  //获取当前被点击的节点
-    QModelIndex index = devlist->zindexFromItem(curItem);
-    qDebug("row is %d!", devlist->get_current_row());
-    qDebug("dev type is 0x%x!", get_dev_type(devlist->get_current_row()));
-    if(devlist==NULL)return;                            //这种情况是右键的位置不在treeItem的范围内，即在空白位置右击
+
     QString wellName = curItem->text(2);
 
     if(wellName != "00:00:00:00:00:00")
     {
-        QAction logindev(tr("登录该设备"),this);//登录该设备
-        QAction setip(tr("设置ip"),this);   //设置该设备的Ip
-        QAction setname(tr("设置设备名称"),this);   //设置该设备的Ip
-        //在界面上删除该item
-       connect(&logindev, SIGNAL(triggered()), this, SLOT(rogindev()));
-       connect(&setip,    SIGNAL(triggered()), this, SLOT(setip()));
-       connect(&setname,  SIGNAL(triggered()), this, SLOT(set_dev_name()));
+        quint8 ty = current_dev_type();
+        if(ty == LX_DEV)
+        {
+            QAction logindev(tr("远程该设备"),this);//登录该设备
+            QAction skipdev(tr("预览该设备"),this);//登录该设备
+            QAction ftpdev(tr("文件传输"),this);//登录该设备
+            QAction setip(tr("设置ip"),this);    //设置该设备的Ip
+            QAction setname(tr("设置设备名称"),this);   //设置该设备的Ip
+            //在界面上删除该item
+           connect(&logindev, SIGNAL(triggered()), this, SLOT(remotedev()));
+           connect(&skipdev, SIGNAL(triggered()), this, SLOT(remote_skip_dev()));
+           connect(&ftpdev, SIGNAL(triggered()), this, SLOT(ftp_dev()));
+           connect(&setip,    SIGNAL(triggered()), this, SLOT(setip()));
+           connect(&setname,  SIGNAL(triggered()), this, SLOT(set_dev_name()));
 
-        QPoint pos;
-        QMenu menu(this->devlist);
-        menu.addAction(&logindev);
-        menu.addAction(&setip);
-        menu.addAction(&setname);
-        menu.exec(QCursor::pos());  //在当前鼠标位置显示
+            QPoint pos;
+            QMenu menu(this->devlist);
+            menu.addAction(&logindev);
+            menu.addAction(&skipdev);
+            menu.addAction(&ftpdev);
+            menu.addAction(&setip);
+            menu.addAction(&setname);
+            menu.exec(QCursor::pos());  //在当前鼠标位置显示
+        }
+        else if( ty != DEV_MAX_TYPE)
+        {
+            QAction logindev(tr("配置该设备"),this);//登录该设备
+            QAction setip(tr("设置ip"),this);   //设置该设备的Ip
+            QAction setname(tr("设置设备名称"),this);   //设置该设备的Ip
+            //在界面上删除该item
+           connect(&logindev, SIGNAL(triggered()), this, SLOT(ieconfig()));
+           connect(&setip,    SIGNAL(triggered()), this, SLOT(setip()));
+           connect(&setname,  SIGNAL(triggered()), this, SLOT(set_dev_name()));
+
+            QPoint pos;
+            QMenu menu(this->devlist);
+            menu.addAction(&logindev);
+            menu.addAction(&setip);
+            menu.addAction(&setname);
+            menu.exec(QCursor::pos());  //在当前鼠标位置显示
+        }
 
     }
 }
@@ -703,6 +722,11 @@ quint8 MainWindow::get_dev_type(int dev)
     else
         return 0xff;
 }
+quint8 MainWindow::current_dev_type(void)
+{
+    return get_dev_type(devlist->get_current_row());
+}
+
 
 void MainWindow::adddevlist(DEV_DATA_INFO  devinfo)
 {
@@ -725,9 +749,26 @@ void MainWindow::adddevlist(DEV_DATA_INFO  devinfo)
 
 }
 
+void MainWindow::add_process(ZProcessWidget * pro, quint8 type, QString ipaddr)
+{
+    TabProcess mid(pro, type, ipaddr);
+    tabpro.append(mid);
+
+}
+
 void MainWindow::set_process_type(quint8 type)
 {
        tabprotype.append(type);
+}
+
+int MainWindow::tab_is_enable(quint8 ty, QString ipaddr)
+{
+    for(int i = 0; i < tabpro.size(); i++)
+    {
+        if(tabpro.at(i).type == ty && tabpro.at(i).ip == ipaddr)
+            return i;
+    }
+    return -1;
 }
 
 //void MainWindow::foucschange(QObject *object)
@@ -764,6 +805,17 @@ void MainWindow::set_process_type(quint8 type)
 //{
 //    return false;
 //}
+
+//bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result)
+//{
+//    Q_UNUSED(eventType);
+
+//   MSG* msg = reinterpret_cast<MSG*>(message);
+//   if(msg->message == WM_LBUTTONDOWN)
+//        qDebug() << "msg " << msg->message;
+//   return false;
+//}
+
 
 MainWindow::~MainWindow()
 {

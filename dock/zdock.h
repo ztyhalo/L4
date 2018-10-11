@@ -84,6 +84,7 @@ private:
      QString         cmd;
      QString         w_name;    //窗口名字
      QString         class_n;    //类名字
+      WId            wid ;
 
 public:
     ZProcessWidget(QString pro="", QString w="", QString c=""):
@@ -92,6 +93,7 @@ public:
         qwid_p = NULL;
         qwin_p = NULL;
         memset(&pi, 0x00, sizeof(pi));
+        wid = 0;
     }
 
     ~ZProcessWidget()
@@ -109,6 +111,7 @@ public:
     }
 
     int creat_process(QWidget *parent = 0);
+    int restart_process(QString w="", QString c="",QWidget *parent= NULL);
 
     QWidget * get_widget(void)
     {
@@ -117,6 +120,10 @@ public:
     PROCESS_INFORMATION  get_pid_info(void)
     {
         return pi;
+    }
+    HWND  get_window_hw(void)
+    {
+        return (HWND)wid;
     }
 };
 
